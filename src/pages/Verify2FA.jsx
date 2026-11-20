@@ -1,7 +1,11 @@
 import { useState } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { ArrowRight, MailCheck, RefreshCw, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import SEO from '../components/SEO';
+import AuthShell from '../components/AuthShell';
+import OtpInput from '../components/OtpInput';
+import Alert from '../components/Alert';
 
 export default function Verify2FA() {
   const { pendingToken, verify2fa, resendCode } = useAuth();
@@ -10,41 +14,88 @@ export default function Verify2FA() {
   const [msg, setMsg] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
 
   if (!pendingToken) return <Navigate to="/login" replace />;
 
   const submit = async (e) => {
     e.preventDefault();
-    setError(''); setMsg(''); setLoading(true);
+    setError('');
+    setMsg('');
+    setLoading(true);
     try {
       await verify2fa(code);
       nav('/admin');
     } catch (err) {
-      setError(err.response?.data?.message || 'Verification failed');
-    } finally { setLoading(false); }
+      setError(err.response?.data?.message || 'Verification failed. Check the code and try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const resend = async () => {
-    setError(''); setMsg('');
-    try { await resendCode(); setMsg('A new code has been sent.'); } catch (err) { setError(err.response?.data?.message || 'Could not resend code'); }
+    setError('');
+    setMsg('');
+    setResending(true);
+    try {
+      await resendCode();
+      setMsg('A new code has been sent to your email.');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Could not resend the code.');
+    } finally {
+      setResending(false);
+    }
   };
 
   return (
-    <section className="section">
+    <>
       <SEO title="Verify Code" description="Verify your login code." />
-      <div className="container" style={{maxWidth:520}}>
-        <h1 className="section-title">Two-Step Verification</h1>
-        <p className="section-sub">Enter the 6-digit code sent to your email. It expires in 5 minutes.</p>
-        {msg && <div className="alert success" style={{marginBottom:'1rem'}}>{msg}</div>}
-        {error && <div className="alert error" style={{marginBottom:'1rem'}}>{error}</div>}
-        <form className="card" onSubmit={submit}>
-          <div className="card-body form-grid">
-            <div><label htmlFor="code">Verification Code</label><input id="code" inputMode="numeric" pattern="\d{6}" maxLength={6} value={code} onChange={e=>setCode(e.target.value.replace(/\D/g,''))} required /></div>
-            <button className="btn btn-primary" disabled={loading || code.length!==6}>{loading ? 'Verifying...' : 'Verify & Login'}</button>
-            <button type="button" className="btn btn-outline" onClick={resend}>Resend Code</button>
+      <AuthShell
+        eyebrow="Two-step verification"
+        title="Enter your code"
+        subtitle="We sent a 6-digit code to your email. It expires in 5 minutes."
+        footer={
+          <Link className="link" to="/login">
+            Use a different account
+          </Link>
+        }
+      >
+        <form className="form-grid" onSubmit={submit}>
+          <Alert type="success">{msg}</Alert>
+          <Alert type="error">{error}</Alert>
+
+          <div className="field">
+            <span className="field-label" id="code-label">
+              Verification code
+            </span>
+            <OtpInput value={code} onChange={setCode} label="Verification code" />
+            <span className="field-hint">
+              <MailCheck size={12} style={{ display: 'inline', verticalAlign: '-2px', marginRight: 4 }} aria-hidden="true" />
+              Paste the whole code and the boxes fill automatically.
+            </span>
           </div>
+
+          <button className="btn btn-primary btn-lg" disabled={loading || code.length !== 6} type="submit">
+            {loading ? (
+              <>
+                <span className="spinner" aria-hidden="true" />
+                Verifying…
+              </>
+            ) : (
+              <>
+                <ShieldCheck size={17} />
+                Verify & continue
+                <ArrowRight size={17} className="btn-arrow" />
+              </>
+            )}
+          </button>
+
+          <button type="button" className="btn btn-outline" onClick={resend} disabled={resending}>
+            <RefreshCw size={16} className={resending ? 'spin' : undefined} />
+            {resending ? 'Sending…' : 'Resend code'}
+          </button>
         </form>
-      </div>
-    </section>
+      </AuthShell>
+    </>
   );
 }

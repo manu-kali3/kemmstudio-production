@@ -1,11 +1,17 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { ArrowRight, Eye, EyeOff, Lock, Mail } from 'lucide-react';
 import api from '../api/client';
 import SEO from '../components/SEO';
+import AuthShell from '../components/AuthShell';
+import Field from '../components/Field';
+import OtpInput from '../components/OtpInput';
+import Alert from '../components/Alert';
 
 export default function ResetPassword() {
   const nav = useNavigate();
   const [form, setForm] = useState({ email: '', code: '', newPassword: '' });
+  const [showPassword, setShowPassword] = useState(false);
   const [msg, setMsg] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -14,41 +20,103 @@ export default function ResetPassword() {
 
   const submit = async (e) => {
     e.preventDefault();
-    setMsg(''); setError(''); setLoading(true);
+    setMsg('');
+    setError('');
+    setLoading(true);
     try {
       const { data } = await api.post('/auth/reset-password', {
         email: form.email,
         code: form.code,
         newPassword: form.newPassword,
       });
-      setMsg(data.message || 'Password reset successful. Redirecting to login...');
+      setMsg(data.message || 'Password reset successful. Redirecting to login…');
       setTimeout(() => nav('/login'), 1500);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to reset password.');
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <section className="section">
-      <SEO title="Reset Password" description="Enter your reset code and new password." />
-      <div className="container" style={{maxWidth:520}}>
-        <h1 className="section-title">Reset Password</h1>
-        <p className="section-sub">Enter the 6-digit code sent to your email and choose a new password.</p>
-        {msg && <div className="alert success" style={{marginBottom:'1rem'}}>{msg}</div>}
-        {error && <div className="alert error" style={{marginBottom:'1rem'}}>{error}</div>}
-        <form className="card" onSubmit={submit}>
-          <div className="card-body form-grid">
-            <div><label htmlFor="email">Email</label><input id="email" name="email" type="email" value={form.email} onChange={onChange} required /></div>
-            <div><label htmlFor="code">Reset Code</label><input id="code" name="code" inputMode="numeric" pattern="\d{6}" maxLength={6} value={form.code} onChange={e=>setForm({...form, code:e.target.value.replace(/\D/g,'')})} required /></div>
-            <div><label htmlFor="newPassword">New Password</label><input id="newPassword" name="newPassword" type="password" minLength={8} value={form.newPassword} onChange={onChange} required /></div>
-            <button className="btn btn-primary" disabled={loading || form.code.length!==6}>{loading ? 'Resetting...' : 'Reset Password'}</button>
-            <div style={{display:'flex', gap:'1rem', flexWrap:'wrap'}}>
-              <Link to="/forgot-password" style={{color:'var(--accent)'}}>Resend code</Link>
-              <Link to="/login" className="muted">Back to login</Link>
-            </div>
+    <>
+      <SEO title="Reset Password" description="Enter your reset code and choose a new password." />
+      <AuthShell
+        eyebrow="Account recovery"
+        title="Set a new password"
+        subtitle="Enter the 6-digit code sent to your email, then choose a new password."
+        footer={
+          <>
+            <Link className="link" to="/forgot-password">
+              Resend code
+            </Link>
+            <Link className="muted" to="/login">
+              Back to login
+            </Link>
+          </>
+        }
+      >
+        <form className="form-grid" onSubmit={submit}>
+          <Alert type="success">{msg}</Alert>
+          <Alert type="error">{error}</Alert>
+
+          <Field id="email" label="Email" required icon={Mail}>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              value={form.email}
+              onChange={onChange}
+              placeholder="you@example.com"
+              autoComplete="email"
+              required
+            />
+          </Field>
+
+          <div className="field">
+            <span className="field-label">Reset code</span>
+            <OtpInput value={form.code} onChange={(code) => setForm((prev) => ({ ...prev, code }))} id="code" label="Reset code" />
           </div>
+
+          <Field id="newPassword" label="New password" required icon={Lock} hint="Minimum 8 characters.">
+            <input
+              id="newPassword"
+              name="newPassword"
+              type={showPassword ? 'text' : 'password'}
+              minLength={8}
+              value={form.newPassword}
+              onChange={onChange}
+              placeholder="Create a new password"
+              autoComplete="new-password"
+              style={{ paddingRight: '3rem' }}
+              required
+            />
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() => setShowPassword((v) => !v)}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              style={{ position: 'absolute', right: '.3rem', minHeight: 38, padding: '0 .55rem' }}
+            >
+              {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+            </button>
+          </Field>
+
+          <button className="btn btn-primary btn-lg" disabled={loading || form.code.length !== 6} type="submit">
+            {loading ? (
+              <>
+                <span className="spinner" aria-hidden="true" />
+                Resetting…
+              </>
+            ) : (
+              <>
+                Reset password
+                <ArrowRight size={17} className="btn-arrow" />
+              </>
+            )}
+          </button>
         </form>
-      </div>
-    </section>
+      </AuthShell>
+    </>
   );
 }
